@@ -19,7 +19,7 @@ sqlparser = "0.11"
 thiserror = "1"
 url = "2"
 
-arrow = {version = "22", optional = true, features = ["prettyprint"]}
+arrow = {version = "25", optional = true, features = ["prettyprint"]}
 arrow2 = {version = "0.10", default-features = false, optional = true}
 bb8 = {version = "0.7", optional = true}
 bb8-tiberius = {version = "0.5", optional = true}
@@ -53,7 +53,8 @@ tokio = {version = "1", features = ["rt", "rt-multi-thread", "net"], optional = 
 urlencoding = {version = "2.1", optional = true}
 uuid = {version = "0.8", optional = true}
 j4rs = {version = "0.13", optional = true}
-datafusion = {version = "12", optional = true}
+# DataFusion post-13 update that picks up Arrow 25.0.0
+datafusion = { git = "https://github.com/apache/arrow-datafusion", rev = "784f10bb57f86a4db2e01a6cb51da742af0dd9d9", optional = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
