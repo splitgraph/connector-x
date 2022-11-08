@@ -1,0 +1,123 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="ConnectorX"><meta name="keywords" content="rust, rustlang, rust-lang, connectorx"><title>connectorx - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../normalize.css"><link rel="stylesheet" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../ayu.css" disabled><link rel="stylesheet" href="../dark.css" disabled><link rel="stylesheet" href="../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../storage.js"></script><script defer src="../crates.js"></script><script defer src="../main.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../favicon.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../connectorx/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../connectorx/index.html"><div class="logo-container"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></div></a><h2 class="location"><a href="#">Crate connectorx</a></h2><div class="sidebar-elems"><div class="block"><ul><li class="version">Version 0.3.1</li><li><a id="all-types" href="all.html">All Items</a></li></ul></div><section><div class="block"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li></ul></div></section></div></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../connectorx/index.html"><img class="rust-logo" src="../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="main-heading"><h1 class="fqn"><span class="in-band">Crate <a class="mod" href="#">connectorx</a><button id="copy-path" onclick="copy_path(this)" title="Copy item path to clipboard"><img src="../clipboard.svg" width="19" height="18" alt="Copy item path"></button></span></h1><span class="out-of-band"><a class="srclink" href="../src/connectorx/lib.rs.html#1-203">source</a> · <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span></div><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><h2 id="connectorx"><a href="#connectorx">ConnectorX</a></h2>
+<p>ConnectorX enables you to load data from databases into dataframes in the fastest and most memory efficient way by leveraging
+zero-copy and partition-based parallelism.</p>
+<p>Currently, ConnectorX consists of a Rust core library and a python library. This is the documentation for the Rust crate.
+For the documentation of the Python library, please refer to our <a href="https://github.com/sfu-db/connector-x">Github Readme</a>.</p>
+<h2 id="design"><a href="#design">Design</a></h2>
+<p>A data loading problem consists of three sub-problems:</p>
+<ol>
+<li>How to connect to the data source and read data.</li>
+<li>How to connect to the data destination and write data.</li>
+<li>How to map the types between the source and destination.</li>
+</ol>
+<p>Additionally, since ConnectorX will partition a query into partitions and execute them in parallel, we also have
+4. How to partition the query and run them in parallel.</p>
+<p>ConnectorX approaches these problems by defining abstractions on sources, destinations, and mapping rules.
+For the partition-based parallelism, ConnectorX will partition the query as well as the source and the destination
+together and put them into threads.
+Each thread will own exactly 1 query, 1 partitioned source, and 1 partitioned destination.</p>
+<p>The following graph depicts the internal mechanism when ConnectorX is downloading the data.</p>
+<div class="example-wrap"><pre class="language-text"><code>                    +------------------------------------------------------------+
+                    |                           Thread 1                         |
+                    |                                                            |
+    +---+           | +-----------------+   +-------------+  +-----------------+ |          +---+
+    |   +-----------+&gt;| Partitioned Src +--&gt;| Type Mapper +-&gt;| Partitioned Dst +-+---------&gt;|   |
+    |   |           | +-----------------+   +-------------+  +-----------------+ |          |   |
+    | D |           |                                                            |          | D |
+    | a |           +------------------------------------------------------------+          | a |
+    | t |                                          .                                        | t |
+    | a |                                          .                                        | a |
+    | b |                                          .                                        | f |
+    | a |           +------------------------------------------------------------+          | r |
+    | s |           |                           Thread n                         |          | a |
+    | e |           |                                                            |          | m |
+    |   |           | +-----------------+   +-------------+  +-----------------+ |          | e |
+    |   +-----------+&gt;| Partitioned Src +--&gt;| Type Mapper +-&gt;| Partitioned Dst +-+---------&gt;|   |
+    +---+           | +-----------------+   +-------------+  +-----------------+ |          +---+
+                    |                                                            |
+                    +------------------------------------------------------------+
+</code></pre></div><h3 id="how-does-connectorx-download-the-data"><a href="#how-does-connectorx-download-the-data">How does ConnectorX download the data?</a></h3>
+<p>Upon receiving the query, e.g. SELECT * FROM lineitem, ConnectorX will first issue a LIMIT 1 query SELECT * FROM lineitem LIMIT 1 to get the schema of the result set.</p>
+<p>Then, if partition_on is specified, ConnectorX will issue <code>SELECT MIN($partition_on), MAX($partition_on) FROM (SELECT * FROM lineitem)</code> to know the range of the partition column.
+After that, the original query is split into partitions based on the min/max information, e.g. <code>SELECT * FROM (SELECT * FROM lineitem) WHERE $partition_on &gt; 0 AND $partition_on &lt; 10000</code>.
+ConnectorX will then run a count query to get the partition size (e.g. <code>SELECT COUNT(*) FROM (SELECT * FROM lineitem) WHERE $partition_on &gt; 0 AND $partition_on &lt; 10000</code>).
+If the partition is not specified, the count query will be <code>SELECT COUNT(*) FROM (SELECT * FROM lineitem)</code>.</p>
+<p>Finally, ConnectorX will use the schema info as well as the count info to allocate memory and download data by executing the queries normally.
+Once the downloading begins, there will be one thread for each partition so that the data are downloaded in parallel at the partition level.
+The thread will issue the query of the corresponding partition to the database and then write the returned data to the destination row-wise or column-wise (depends on the database) in a streaming fashion.
+This mechanism implies that having an index on the partition column is recommended to make full use of the parallel downloading power provided by ConnectorX.</p>
+<h2 id="extending-connectorx"><a href="#extending-connectorx">Extending ConnectorX</a></h2><h3 id="adding-a-new-source"><a href="#adding-a-new-source">Adding a new source</a></h3>
+<p>To add a new data source, you need to implement <a href="sources/trait.Source.html" title="sources::Source"><code>sources::Source</code></a>, <a href="sources/trait.SourcePartition.html" title="sources::SourcePartition"><code>sources::SourcePartition</code></a>, <a href="sources/trait.PartitionParser.html" title="sources::PartitionParser"><code>sources::PartitionParser</code></a>, and <a href="sources/trait.Produce.html" title="sources::Produce"><code>sources::Produce</code></a> for the source.
+In detail, <a href="sources/trait.Source.html" title="sources::Source"><code>sources::Source</code></a> describes how to connect to the database from a connection string, as well as how to do partitioning on the source to produce a list of <a href="sources/trait.SourcePartition.html" title="sources::SourcePartition"><code>sources::SourcePartition</code></a>.
+<a href="sources/trait.SourcePartition.html" title="sources::SourcePartition"><code>sources::SourcePartition</code></a> describes how to get the row count for the specific partition so that the destination can preallocate the memory.
+Finally, <a href="sources/trait.PartitionParser.html" title="sources::PartitionParser"><code>sources::PartitionParser</code></a> and <a href="sources/trait.Produce.html" title="sources::Produce"><code>sources::Produce</code></a> abstracts away the detail about how does each partition parse different types.</p>
+<h3 id="adding-a-new-destination"><a href="#adding-a-new-destination">Adding a new destination</a></h3>
+<p>To add a new data destination, you need to implement <a href="destinations/trait.Destination.html" title="destinations::Destination"><code>destinations::Destination</code></a>, <a href="destinations/trait.DestinationPartition.html" title="destinations::DestinationPartition"><code>destinations::DestinationPartition</code></a>, and <a href="destinations/trait.Consume.html" title="destinations::Consume"><code>destinations::Consume</code></a>. Similar to the sources,
+<a href="destinations/trait.Destination.html" title="destinations::Destination"><code>destinations::Destination</code></a> describes how to allocate the memory of the data destination, as well as how to do partitioning on the destination to produce a list of <a href="destinations/trait.DestinationPartition.html" title="destinations::DestinationPartition"><code>destinations::DestinationPartition</code></a>.
+<a href="destinations/trait.DestinationPartition.html" title="destinations::DestinationPartition"><code>destinations::DestinationPartition</code></a> and <a href="destinations/trait.Consume.html" title="destinations::Consume"><code>destinations::Consume</code></a> abstract away the detail about how does each partition writes different types.</p>
+<h3 id="adding-a-new-transport-type-mapping"><a href="#adding-a-new-transport-type-mapping">Adding a new transport (type mapping)</a></h3>
+<p>After having a source and a destination that describes how to read and write the data,
+ConnectorX also needs to know how to convert the values with different types from the source to the destination.
+For example, Postgres can produce a <code>uuid</code> type but there’s no uuid in Arrow. It is the transport’s duty to convert
+the <code>uuid</code> into an Arrow compatible type, e.g. string. You can use the <a href="macro.impl_transport.html" title="impl_transport!"><code>impl_transport!</code></a> macro to define a transport.</p>
+<h3 id="putting-things-together"><a href="#putting-things-together">Putting things together</a></h3>
+<p>Say, you decide to load data from SQL Server to Arrow. In ConnectorX we already provided the source for SQL Server as <a href="sources/sqlite/struct.SQLiteSource.html" title="sources::sqlite::SQLiteSource"><code>sources::sqlite::SQLiteSource</code></a>, and the
+Arrow destination <a href="destinations/arrow/struct.ArrowDestination.html" title="destinations::arrow::ArrowDestination"><code>destinations::arrow::ArrowDestination</code></a>, as well as the transport <a href="transports/struct.SQLiteArrowTransport.html" title="transports::SQLiteArrowTransport"><code>transports::SQLiteArrowTransport</code></a>.
+Given the source, destination and transport already implemented, you can use <a href="prelude/struct.Dispatcher.html" title="dispatcher::Dispatcher"><code>dispatcher::Dispatcher</code></a> to load the data:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>connectorx::prelude::<span class="kw-2">*</span>;
+
+<span class="kw">let </span><span class="kw-2">mut </span>destination = ArrowDestination::new();
+<span class="kw">let </span>source = SQLiteSource::new(<span class="string">&quot;/path/to/db&quot;</span>, <span class="number">10</span>).expect(<span class="string">&quot;cannot create the source&quot;</span>);
+<span class="kw">let </span>queries = <span class="kw-2">&amp;</span>[<span class="string">&quot;SELECT * FROM db WHERE id &lt; 100&quot;</span>, <span class="string">&quot;SELECT * FROM db WHERE id &gt;= 100&quot;</span>];
+<span class="kw">let </span>dispatcher = Dispatcher::&lt;SQLiteSource, ArrowDestination, SQLiteArrowTransport&gt;::new(source, <span class="kw-2">&amp;mut </span>destination, queries, <span class="prelude-val">None</span>);
+dispatcher.run().expect(<span class="string">&quot;run failed&quot;</span>);
+
+<span class="kw">let </span>data = destination.arrow();</code></pre></div>
+<p>Or simply you can directly use the <a href="get_arrow/fn.get_arrow.html" title="get_arrow::get_arrow"><code>get_arrow::get_arrow</code></a> or <a href="get_arrow2/fn.get_arrow2.html" title="get_arrow2::get_arrow2"><code>get_arrow2::get_arrow2</code></a> in which we wrapped the above procedures:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>connectorx::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>std::convert::TryFrom;
+
+<span class="kw">let </span><span class="kw-2">mut </span>source_conn = SourceConn::try_from(<span class="string">&quot;postgresql://username:password@host:port/db?cxprotocol=binary&quot;</span>).expect(<span class="string">&quot;parse conn str failed&quot;</span>);
+<span class="kw">let </span>queries = <span class="kw-2">&amp;</span>[CXQuery::from(<span class="string">&quot;SELECT * FROM table WHERE id &lt; 100&quot;</span>), CXQuery::from(<span class="string">&quot;SELECT * FROM table WHERE id &gt;= 100&quot;</span>)];
+<span class="kw">let </span>destination = get_arrow(<span class="kw-2">&amp;</span>source_conn, <span class="prelude-val">None</span>, queries).expect(<span class="string">&quot;run failed&quot;</span>);
+
+<span class="kw">let </span>data = destination.arrow();</code></pre></div>
+<p>NOTE: the pool size parameter <code>nconn</code> used in initializing the source should be larger than or equal to the number of partitioned queries input later.</p>
+<h3 id="need-more-examples"><a href="#need-more-examples">Need more examples?</a></h3>
+<p>You can use the existing implementation as the example.
+<a href="https://github.com/sfu-db/connector-x/tree/main/connectorx/src/sources/mysql">MySQL source</a>,
+<a href="https://github.com/sfu-db/connector-x/tree/main/connectorx/src/destinations/arrow">Arrow destination</a>,
+<a href="https://github.com/sfu-db/connector-x/blob/main/connectorx/src/transports/mysql_arrow.rs">MySQL to Arrow transport</a>.</p>
+<h2 id="sources-protocols--destinations-that-is-implemented-in-the-rust-core"><a href="#sources-protocols--destinations-that-is-implemented-in-the-rust-core">Sources protocols &amp; Destinations that is implemented in the Rust core.</a></h2><h3 id="sources"><a href="#sources">Sources</a></h3>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+Postgres</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Mysql</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Sqlite</li>
+<li><input disabled="" type="checkbox" checked=""/>
+SQL Server</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Oracle</li>
+<li><input disabled="" type="checkbox" checked=""/>
+BigQuery</li>
+</ul>
+<h3 id="destinations"><a href="#destinations">Destinations</a></h3>
+<ul>
+<li><input disabled="" type="checkbox" checked=""/>
+Arrow</li>
+<li><input disabled="" type="checkbox" checked=""/>
+Arrow2</li>
+</ul>
+<h2 id="feature-gates"><a href="#feature-gates">Feature gates</a></h2>
+<p>By default, ConnectorX does not enable any sources / destinations to keep the dependencies minimal.
+Instead, we provide following features for you to opt-in: <code>src_sqlite</code>, <code>src_postgres</code>, <code>src_mysql</code>, <code>src_mssql</code>, <code>src_oracle</code>, <code>dst_arrow</code>, <code>dst_arrow2</code>.
+For example, if you’d like to load data from Postgres to Arrow, you can enable <code>src_postgres</code> and <code>dst_arrow</code> in <code>Cargo.toml</code>.
+This will enable <a href="sources/postgres/index.html" title="sources::postgres"><code>sources::postgres</code></a>, <a href="destinations/arrow/index.html" title="destinations::arrow"><code>destinations::arrow</code></a> and <a href="transports/struct.PostgresArrowTransport.html" title="transports::PostgresArrowTransport"><code>transports::PostgresArrowTransport</code></a>.</p>
+</div></details><h2 id="modules" class="small-section-header"><a href="#modules">Modules</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="mod" href="constants/index.html" title="connectorx::constants mod">constants</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="data_order/index.html" title="connectorx::data_order mod">data_order</a></div><div class="item-right docblock-short">This module provides two data orders: row-wise and column-wise for tabular data,
+as well as a function to coordinate the data order between source and destination.</div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="destinations/index.html" title="connectorx::destinations mod">destinations</a></div><div class="item-right docblock-short">This module defines three traits <a href="destinations/trait.Destination.html" title="Destination"><code>Destination</code></a>, <a href="destinations/trait.DestinationPartition.html" title="DestinationPartition"><code>DestinationPartition</code></a>, and <a href="destinations/trait.Consume.html" title="Consume"><code>Consume</code></a> to define a destination.
+This module also contains destination implementations for various dataframes.</div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="errors/index.html" title="connectorx::errors mod">errors</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="fed_dispatcher/index.html" title="connectorx::fed_dispatcher mod">fed_dispatcher</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="get_arrow/index.html" title="connectorx::get_arrow mod">get_arrow</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="get_arrow2/index.html" title="connectorx::get_arrow2 mod">get_arrow2</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="prelude/index.html" title="connectorx::prelude mod">prelude</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="source_router/index.html" title="connectorx::source_router mod">source_router</a></div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="sources/index.html" title="connectorx::sources mod">sources</a></div><div class="item-right docblock-short">This module defines four traits <a href="sources/trait.Source.html" title="Source"><code>Source</code></a>, <a href="sources/trait.SourcePartition.html" title="SourcePartition"><code>SourcePartition</code></a>, <a href="sources/trait.PartitionParser.html" title="PartitionParser"><code>PartitionParser</code></a>, and <a href="sources/trait.Produce.html" title="Produce"><code>Produce</code></a>  to define a source.
+This module also contains source implementations for various databases.</div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="transports/index.html" title="connectorx::transports mod">transports</a></div><div class="item-right docblock-short">This module contains transport definitions for the sources and destinations implemented in ConnectorX.</div></div><div class="item-row"><div class="item-left module-item"><a class="mod" href="typesystem/index.html" title="connectorx::typesystem mod">typesystem</a></div><div class="item-right docblock-short">This module defines traits that required to define a typesystem.</div></div></div><h2 id="macros" class="small-section-header"><a href="#macros">Macros</a></h2><div class="item-table"><div class="item-row"><div class="item-left module-item"><a class="macro" href="macro.impl_transport.html" title="connectorx::impl_transport macro">impl_transport</a></div><div class="item-right docblock-short">A macro to help define a Transport.</div></div><div class="item-row"><div class="item-left module-item"><a class="macro" href="macro.impl_typesystem.html" title="connectorx::impl_typesystem macro">impl_typesystem</a></div><div class="item-right docblock-short">Associate physical representations to a typesystem.</div></div></div></section></div></main><div id="rustdoc-vars" data-root-path="../" data-current-crate="connectorx" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>
