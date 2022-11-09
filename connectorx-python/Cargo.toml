@@ -37,7 +37,7 @@ pyo3 = {version = "0.14", default-features = false, features = ["macros"]}
 pyo3-built = "0.4"
 r2d2-oracle = {version = "0.5.0", features = ["chrono"]}
 r2d2_mysql = {version = "21.0"}
-rusqlite = {version = "0.25", features = ["column_decltype", "chrono", "bundled"]}
+rusqlite = {version = "0.26.2", features = ["column_decltype", "chrono", "bundled"]}
 rust_decimal = {version = "1", features = ["db-postgres"]}
 rust_decimal_macros = "1"
 serde_json = "1"
