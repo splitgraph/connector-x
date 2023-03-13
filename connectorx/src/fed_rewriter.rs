@@ -16,6 +16,7 @@ pub struct Plan {
     pub db_name: String,
     pub db_alias: String,
     pub sql: String,
+    pub cardinality: usize,
 }
 
 pub struct FederatedDataSourceInfo {
@@ -79,8 +80,8 @@ fn create_sources(jvm: &Jvm, db_map: &HashMap<String, FederatedDataSourceInfo>) 
             debug!("url: {:?}", url);
             let ds = match source_conn.ty {
                 SourceType::Postgres => jvm.invoke_static(
-                    "org.apache.calcite.adapter.jdbc.JdbcSchema",
-                    "dataSource",
+                    "ai.dataprep.federated.FederatedQueryRewriter",
+                    "createDataSource",
                     &[
                         InvocationArg::try_from(format!(
                             "jdbc:postgresql://{}:{}{}",
@@ -95,8 +96,8 @@ fn create_sources(jvm: &Jvm, db_map: &HashMap<String, FederatedDataSourceInfo>) 
                     ],
                 )?,
                 SourceType::MySQL => jvm.invoke_static(
-                    "org.apache.calcite.adapter.jdbc.JdbcSchema",
-                    "dataSource",
+                    "ai.dataprep.federated.FederatedQueryRewriter",
+                    "createDataSource",
                     &[
                         InvocationArg::try_from(format!(
                             "jdbc:mysql://{}:{}{}",
@@ -111,8 +112,8 @@ fn create_sources(jvm: &Jvm, db_map: &HashMap<String, FederatedDataSourceInfo>) 
                     ],
                 )?,
                 SourceType::DuckDB => jvm.invoke_static(
-                    "org.apache.calcite.adapter.jdbc.JdbcSchema",
-                    "dataSource",
+                    "ai.dataprep.federated.FederatedQueryRewriter",
+                    "createDataSource",
                     &[
                         InvocationArg::try_from(format!("jdbc:duckdb:{}", url.path())).unwrap(),
                         InvocationArg::try_from(DUCKDB_JDBC_DRIVER).unwrap(),
@@ -125,6 +126,7 @@ fn create_sources(jvm: &Jvm, db_map: &HashMap<String, FederatedDataSourceInfo>) 
             let fed_ds = jvm.create_instance(
                 "ai.dataprep.federated.FederatedDataSource",
                 &[
+                    InvocationArg::try_from(url.scheme()).unwrap(),
                     InvocationArg::try_from(ds).unwrap(),
                     InvocationArg::try_from(db_info.is_local).unwrap(),
                 ],
@@ -194,34 +196,29 @@ pub fn rewrite_sql(
 
     let mut fed_plan = vec![];
     for i in 0..count {
-        let db = jvm.invoke(
-            &plan,
-            "getDBName",
-            &[InvocationArg::try_from(i).unwrap().into_primitive()?],
-        )?;
+        let idx = [InvocationArg::try_from(i).unwrap().into_primitive()?];
+
+        let db = jvm.invoke(&plan, "getDBName", &idx)?;
         let db: String = jvm.to_rust(db)?;
 
-        let alias_db = jvm.invoke(
-            &plan,
-            "getAliasDBName",
-            &[InvocationArg::try_from(i).unwrap().into_primitive()?],
-        )?;
+        let alias_db = jvm.invoke(&plan, "getAliasDBName", &idx)?;
         let alias_db: String = jvm.to_rust(alias_db)?;
 
-        let rewrite_sql = jvm.invoke(
-            &plan,
-            "getSql",
-            &[InvocationArg::try_from(i).unwrap().into_primitive()?],
-        )?;
+        let rewrite_sql = jvm.invoke(&plan, "getSql", &idx)?;
         let rewrite_sql: String = jvm.to_rust(rewrite_sql)?;
+
+        let cardinality = jvm.invoke(&plan, "getCardinality", &idx)?;
+        let cardinality: usize = jvm.to_rust(cardinality)?;
+
         debug!(
-            "{} - db: {}, alias: {} rewrite sql: {}",
-            i, db, alias_db, rewrite_sql
+            "{} - db: {}, alias: {}, cardinality: {}, rewrite sql: {}",
+            i, db, alias_db, cardinality, rewrite_sql
         );
         fed_plan.push(Plan {
             db_name: db,
             db_alias: alias_db,
             sql: rewrite_sql,
+            cardinality,
         });
     }
     fed_plan
