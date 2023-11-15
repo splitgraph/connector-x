@@ -4,7 +4,7 @@ use crate::sources::oracle::OracleDialect;
 use fehler::{throw, throws};
 use log::{debug, trace, warn};
 use sqlparser::ast::{
-    BinaryOperator, Expr, Function, FunctionArg, FunctionArgExpr, Ident, ObjectName, Query, Select,
+    BinaryOperator, Expr, Function, FunctionArg, FunctionArgExpr, GroupByExpr, Ident, ObjectName, Query, Select,
     SelectItem, SetExpr, Statement, TableAlias, TableFactor, TableWithJoins, Value,
     WildcardAdditionalOptions,
 };
@@ -134,7 +134,7 @@ fn wrap_query(
             }],
             lateral_views: vec![],
             selection,
-            group_by: vec![],
+            group_by: GroupByExpr::Expressions(vec![]),
             cluster_by: vec![],
             distribute_by: vec![],
             sort_by: vec![],
