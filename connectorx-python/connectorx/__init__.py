@@ -1,4 +1,11 @@
-from typing import Optional, Tuple, Union, List, Dict, Any
+from __future__ import annotations
+
+import importlib
+import urllib.parse
+
+from importlib.metadata import version
+from pathlib import Path
+from typing import Literal, TYPE_CHECKING, overload, Generic, TypeVar
 
 from .connectorx import (
     read_sql as _read_sql,
@@ -7,17 +14,18 @@ from .connectorx import (
     get_meta as _get_meta,
 )
 
-try:
-    from importlib.metadata import version
+if TYPE_CHECKING:
+    import pandas as pd
+    import polars as pl
+    import modin.pandas as mpd
+    import dask.dataframe as dd
+    import pyarrow as pa
 
-    __version__ = version(__name__)
-except:
-    try:
-        from importlib_metadata import version
+    # only for typing hints
+    from .connectorx import _DataframeInfos, _ArrowInfos
 
-        __version__ = version(__name__)
-    except:
-        pass
+
+__version__ = version(__name__)
 
 import os
 
@@ -27,15 +35,21 @@ if (
     not os.path.basename(os.path.abspath(os.path.join(dir_path, "..")))
     == "connectorx-python"
 ):
-    if "J4RS_BASE_PATH" not in os.environ:
-        os.environ["J4RS_BASE_PATH"] = os.path.join(dir_path, "dependencies")
-if "CX_REWRITER_PATH" not in os.environ:
-    os.environ["CX_REWRITER_PATH"] = os.path.join(
-        dir_path, "dependencies/federated-rewriter.jar"
-    )
+    os.environ.setdefault("J4RS_BASE_PATH", os.path.join(dir_path, "dependencies"))
+
+os.environ.setdefault(
+    "CX_REWRITER_PATH", os.path.join(dir_path, "dependencies/federated-rewriter.jar")
+)
+
+Protocol = Literal["csv", "binary", "cursor", "simple", "text"]
 
 
-def rewrite_conn(conn: str, protocol: Optional[str] = None):
+_BackendT = TypeVar("_BackendT")
+
+
+def rewrite_conn(
+    conn: str | ConnectionUrl, protocol: Protocol | None = None
+) -> tuple[str, Protocol]:
     if not protocol:
         # note: redshift/clickhouse are not compatible with the 'binary' protocol, and use other database
         # drivers to connect. set a compatible protocol and masquerade as the appropriate backend.
@@ -52,10 +66,10 @@ def rewrite_conn(conn: str, protocol: Optional[str] = None):
 
 
 def get_meta(
-    conn: str,
+    conn: str | ConnectionUrl,
     query: str,
-    protocol: Optional[str] = None,
-):
+    protocol: Protocol | None = None,
+) -> pd.DataFrame:
     """
     Get metadata (header) of the given query (only for pandas)
 
@@ -77,12 +91,12 @@ def get_meta(
 
 
 def partition_sql(
-    conn: str,
+    conn: str | ConnectionUrl,
     query: str,
     partition_on: str,
     partition_num: int,
-    partition_range: Optional[Tuple[int, int]] = None,
-):
+    partition_range: tuple[int, int] | None = None,
+) -> list[str]:
     """
     Partition the sql query
 
@@ -102,22 +116,22 @@ def partition_sql(
     partition_query = {
         "query": query,
         "column": partition_on,
-        "min": partition_range[0] if partition_range else None,
-        "max": partition_range[1] if partition_range else None,
+        "min": partition_range and partition_range[0],
+        "max": partition_range and partition_range[1],
         "num": partition_num,
     }
     return _partition_sql(conn, partition_query)
 
 
 def read_sql_pandas(
-    sql: Union[List[str], str],
-    con: Union[str, Dict[str, str]],
-    index_col: Optional[str] = None,
-    protocol: Optional[str] = None,
-    partition_on: Optional[str] = None,
-    partition_range: Optional[Tuple[int, int]] = None,
-    partition_num: Optional[int] = None,
-):
+    sql: list[str] | str,
+    con: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    index_col: str | None = None,
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+) -> pd.DataFrame:
     """
     Run the SQL query, download the data from database into a dataframe.
     First several parameters are in the same name and order with `pandas.read_sql`.
@@ -149,17 +163,103 @@ def read_sql_pandas(
     )
 
 
+# default return pd.DataFrame
+@overload
 def read_sql(
-    conn: Union[str, Dict[str, str]],
-    query: Union[List[str], str],
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
     *,
-    return_type: str = "pandas",
-    protocol: Optional[str] = None,
-    partition_on: Optional[str] = None,
-    partition_range: Optional[Tuple[int, int]] = None,
-    partition_num: Optional[int] = None,
-    index_col: Optional[str] = None,
-):
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> pd.DataFrame: ...
+
+
+@overload
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal["pandas"],
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> pd.DataFrame: ...
+
+
+@overload
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal["arrow", "arrow2"],
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> pa.Table: ...
+
+
+@overload
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal["modin"],
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> mpd.DataFrame: ...
+
+
+@overload
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal["dask"],
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> dd.DataFrame: ...
+
+
+@overload
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal["polars", "polars2"],
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> pl.DataFrame: ...
+
+
+def read_sql(
+    conn: str | ConnectionUrl | dict[str, str] | dict[str, ConnectionUrl],
+    query: list[str] | str,
+    *,
+    return_type: Literal[
+        "pandas", "polars", "polars2", "arrow", "arrow2", "modin", "dask"
+    ] = "pandas",
+    protocol: Protocol | None = None,
+    partition_on: str | None = None,
+    partition_range: tuple[int, int] | None = None,
+    partition_num: int | None = None,
+    index_col: str | None = None,
+) -> pd.DataFrame | mpd.DataFrame | dd.DataFrame | pl.DataFrame | pa.Table:
     """
     Run the SQL query, download the data from database into a dataframe.
 
@@ -206,6 +306,7 @@ def read_sql(
     """
     if isinstance(query, list) and len(query) == 1:
         query = query[0]
+        query = remove_ending_semicolon(query)
 
     if isinstance(conn, dict):
         assert partition_on is None and isinstance(
@@ -214,15 +315,15 @@ def read_sql(
         assert (
             protocol is None
         ), "Federated query does not support specifying protocol for now"
+
+        query = remove_ending_semicolon(query)
+
         result = _read_sql2(query, conn)
         df = reconstruct_arrow(result)
         if return_type == "pandas":
             df = df.to_pandas(date_as_object=False, split_blocks=False)
         if return_type == "polars":
-            try:
-                import polars as pl
-            except ModuleNotFoundError:
-                raise ValueError("You need to install polars first")
+            pl = try_import_module("polars")
 
             try:
                 # api change for polars >= 0.8.*
@@ -232,6 +333,8 @@ def read_sql(
         return df
 
     if isinstance(query, str):
+        query = remove_ending_semicolon(query)
+
         if partition_on is None:
             queries = [query]
             partition_query = None
@@ -245,7 +348,7 @@ def read_sql(
             }
             queries = None
     elif isinstance(query, list):
-        queries = query
+        queries = [remove_ending_semicolon(subquery) for subquery in query]
         partition_query = None
 
         if partition_on is not None:
@@ -256,10 +359,7 @@ def read_sql(
     conn, protocol = rewrite_conn(conn, protocol)
 
     if return_type in {"modin", "dask", "pandas"}:
-        try:
-            import pandas
-        except ModuleNotFoundError:
-            raise ValueError("You need to install pandas first")
+        try_import_module("pandas")
 
         result = _read_sql(
             conn,
@@ -274,25 +374,14 @@ def read_sql(
             df.set_index(index_col, inplace=True)
 
         if return_type == "modin":
-            try:
-                import modin.pandas as mpd
-            except ModuleNotFoundError:
-                raise ValueError("You need to install modin first")
-
+            mpd = try_import_module("modin.pandas")
             df = mpd.DataFrame(df)
         elif return_type == "dask":
-            try:
-                import dask.dataframe as dd
-            except ModuleNotFoundError:
-                raise ValueError("You need to install dask first")
-
+            dd = try_import_module("dask.dataframe")
             df = dd.from_pandas(df, npartitions=1)
 
     elif return_type in {"arrow", "arrow2", "polars", "polars2"}:
-        try:
-            import pyarrow
-        except ModuleNotFoundError:
-            raise ValueError("You need to install pyarrow first")
+        try_import_module("pyarrow")
 
         result = _read_sql(
             conn,
@@ -303,11 +392,7 @@ def read_sql(
         )
         df = reconstruct_arrow(result)
         if return_type in {"polars", "polars2"}:
-            try:
-                import polars as pl
-            except ModuleNotFoundError:
-                raise ValueError("You need to install polars first")
-
+            pl = try_import_module("polars")
             try:
                 df = pl.DataFrame.from_arrow(df)
             except AttributeError:
@@ -319,7 +404,7 @@ def read_sql(
     return df
 
 
-def reconstruct_arrow(result: Tuple[List[str], List[List[Tuple[int, int]]]]):
+def reconstruct_arrow(result: _ArrowInfos) -> pa.Table:
     import pyarrow as pa
 
     names, ptrs = result
@@ -335,7 +420,7 @@ def reconstruct_arrow(result: Tuple[List[str], List[List[Tuple[int, int]]]]):
     return pa.Table.from_batches(rbs)
 
 
-def reconstruct_pandas(df_infos: Dict[str, Any]):
+def reconstruct_pandas(df_infos: _DataframeInfos) -> pd.DataFrame:
     import pandas as pd
 
     data = df_infos["data"]
@@ -377,3 +462,151 @@ def reconstruct_pandas(df_infos: Dict[str, Any]):
     )
     df = pd.DataFrame(block_manager)
     return df
+
+
+def remove_ending_semicolon(query: str) -> str:
+    """
+    Removes the semicolon if the query ends with it.
+
+    Parameters
+    ==========
+    query
+      SQL query
+
+    """
+    if query.endswith(";"):
+        query = query[:-1]
+    return query
+
+
+def try_import_module(name: str):
+    try:
+        return importlib.import_module(name)
+    except ModuleNotFoundError:
+        raise ValueError(f"You need to install {name.split('.')[0]} first")
+
+
+_ServerBackendT = TypeVar(
+    "_ServerBackendT",
+    bound=Literal[
+        "redshift",
+        "clickhouse",
+        "postgres",
+        "postgresql",
+        "mysql",
+        "mssql",
+        "oracle",
+        "duckdb",
+    ],
+)
+
+
+class ConnectionUrl(Generic[_BackendT], str):
+    @overload
+    def __new__(
+        cls,
+        *,
+        backend: Literal["sqlite"],
+        db_path: str | Path,
+    ) -> ConnectionUrl[Literal["sqlite"]]:
+        """
+        Help to build sqlite connection string url.
+
+        Parameters
+        ==========
+        backend:
+            must specify "sqlite".
+        db_path:
+            the path to the sqlite database file.
+        """
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        backend: Literal["bigquery"],
+        db_path: str | Path,
+    ) -> ConnectionUrl[Literal["bigquery"]]:
+        """
+        Help to build BigQuery connection string url.
+
+        Parameters
+        ==========
+        backend:
+            must specify "bigquery".
+        db_path:
+            the path to the bigquery database file.
+        """
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        backend: _ServerBackendT,
+        username: str,
+        password: str = "",
+        server: str,
+        port: int,
+        database: str = "",
+        database_options: dict[str, str] | None = None,
+    ) -> ConnectionUrl[_ServerBackendT]:
+        """
+        Help to build server-side backend database connection string url.
+
+        Parameters
+        ==========
+        backend:
+            the database backend.
+        username:
+            the database username.
+        password:
+            the database password.
+        server:
+            the database server name.
+        port:
+            the database server port.
+        database:
+            the database name.
+        database_options:
+            the database options for connection.
+        """
+
+    @overload
+    def __new__(
+        cls,
+        raw_connection: str,
+    ) -> ConnectionUrl:
+        """
+        Build connection from raw connection string url
+
+        Parameters
+        ==========
+        raw_connection:
+            raw connection string
+        """
+
+    def __new__(
+        cls,
+        raw_connection: str | None = None,
+        *,
+        backend: str = "",
+        username: str = "",
+        password: str = "",
+        server: str = "",
+        port: int | None = None,
+        database: str = "",
+        database_options: dict[str, str] | None = None,
+        db_path: str | Path = "",
+    ) -> ConnectionUrl:
+        if raw_connection is not None:
+            return super().__new__(cls, raw_connection)
+
+        assert backend
+        if backend == "sqlite":
+            db_path = urllib.parse.quote(str(db_path))
+            connection = f"{backend}://{db_path}"
+        else:
+            connection = f"{backend}://{username}:{password}@{server}:{port}/{database}"
+            if database_options:
+                connection += "?" + urllib.parse.urlencode(database_options)
+        return super().__new__(cls, connection)
