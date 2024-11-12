@@ -4,8 +4,8 @@ use crate::sources::oracle::OracleDialect;
 use fehler::{throw, throws};
 use log::{debug, trace, warn};
 use sqlparser::ast::{
-    BinaryOperator, Expr, Function, FunctionArg, FunctionArgExpr, GroupByExpr, Ident, ObjectName, Query, Select,
-    SelectItem, SetExpr, Statement, TableAlias, TableFactor, TableWithJoins, Value,
+    BinaryOperator, Expr, Function, FunctionArg, FunctionArgExpr, GroupByExpr, Ident, ObjectName,
+    Query, Select, SelectItem, SetExpr, Statement, TableAlias, TableFactor, TableWithJoins, Value,
     WildcardAdditionalOptions,
 };
 use sqlparser::dialect::Dialect;
