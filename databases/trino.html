@@ -16,8 +16,8 @@
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
     document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
   </script>
-  <!-- 
-    this give us a css class that will be invisible only if js is disabled 
+  <!--
+    this give us a css class that will be invisible only if js is disabled
   -->
   <noscript>
     <style>
@@ -27,8 +27,8 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
@@ -39,10 +39,10 @@
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
   
   <!-- So that users can add custom icons -->
-  <script src="../_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
     <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
     <script src="../_static/doctools.js?v=9a2dae69"></script>
@@ -189,9 +189,14 @@
   
   
   <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
   </div>
-  
-  <div id="rtd-footer-container"></div>
 
 
       </div>
@@ -368,7 +373,7 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#postgres-connection">Postgres Connection</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connection">Connection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trino-pandas-type-mapping">Trino-Pandas Type Mapping</a></li>
 </ul>
             </nav>
@@ -383,12 +388,12 @@
                   
   <section class="tex2jax_ignore mathjax_ignore" id="trino">
 <h1>Trino<a class="headerlink" href="#trino" title="Link to this heading">#</a></h1>
-<section id="postgres-connection">
-<h2>Postgres Connection<a class="headerlink" href="#postgres-connection" title="Link to this heading">#</a></h2>
+<section id="connection">
+<h2>Connection<a class="headerlink" href="#connection" title="Link to this heading">#</a></h2>
 <div class="admonition hint">
 <p class="admonition-title">Hint</p>
-<p>Using <code class="docutils literal notranslate"><span class="pre">trino+http</span></code> as connection protocol disables SSL for the connection. Example: `trino+http://host:port/catalog
-Notice that basic auth requires SSL for Trino.</p>
+<p>Using <code class="docutils literal notranslate"><span class="pre">trino+http</span></code> as connection protocol disables TLS for the connection. Example: <code class="docutils literal notranslate"><span class="pre">trino+http://host:port/catalog</span></code>
+Notice that Trino requires TLS for basic auth credentials. To use self-signed certificates, add <code class="docutils literal notranslate"><span class="pre">verify=false</span></code> like this: <code class="docutils literal notranslate"><span class="pre">trino+https://host:port/catalog?verify=false</span></code></p>
 </div>
 <div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">connectorx</span> <span class="k">as</span> <span class="nn">cx</span>
 <span class="n">conn</span> <span class="o">=</span> <span class="s1">&#39;trino+https://username:password@server:port/catalog&#39;</span>     <span class="c1"># connection token</span>
@@ -524,7 +529,7 @@ Notice that basic auth requires SSL for Trino.</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#postgres-connection">Postgres Connection</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#connection">Connection</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trino-pandas-type-mapping">Trino-Pandas Type Mapping</a></li>
 </ul>
   </nav></div>
@@ -574,8 +579,8 @@ By SFU-DB
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
-<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
 
   <footer class="bd-footer">
   </footer>
